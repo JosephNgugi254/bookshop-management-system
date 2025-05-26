@@ -1,3 +1,4 @@
+# lib/cli.py
 import os
 import sys
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -8,6 +9,8 @@ from lib.db.connection import engine, Session
 from lib.models.book import Book
 from lib.models.author import Author
 from lib.models.genre import Genre
+from lib.models.sale import Sale
+from datetime import datetime, timezone
 
 session = Session()
 
@@ -62,6 +65,9 @@ def sell_book():
         click.echo(f"Error: Only {book.quantity} in stock.")
         return
     book.quantity -= quantity
+    total_price = book.price * quantity
+    sale = Sale(book_id=book.id, quantity=quantity, total_price=total_price, sale_date=datetime.now(timezone.utc))
+    session.add(sale)
     session.commit()
     click.echo(f"Sold {quantity} copies of {book.title}. {book.quantity} remaining.")
 
@@ -87,6 +93,17 @@ def list_genres():
     for genre_id, (name, count) in genre_dict.items():
         click.echo(f"- {name}: {count} books")
 
+def view_sold_books():
+    """View all sold books."""
+    sales = session.query(Sale).all()
+    if not sales:
+        click.echo("No sales recorded.")
+        return
+    click.echo("Sold books:")
+    sale_list = [(sale.id, sale.book.title, sale.quantity, sale.total_price, sale.sale_date) for sale in sales]
+    for sale in sale_list:
+        click.echo(f"Sale {sale[0]}: {sale[1]} - {sale[2]} copies, ${sale[3]:.2f}, Date: {sale[4]}")
+
 def cli():
     """Bookshop Management System CLI with numbered menu."""
     menu = {
@@ -95,7 +112,8 @@ def cli():
         "3": ("Sell book", sell_book),
         "4": ("List authors", list_authors),
         "5": ("List genres", list_genres),
-        "6": ("Exit", None)
+        "6": ("View sold books", view_sold_books),
+        "7": ("Exit", None)
     }
     
     while True:
@@ -105,14 +123,13 @@ def cli():
         choice = click.prompt("Enter choice", type=str)
         
         if choice not in menu:
-            click.echo("Invalid choice. Please select a number from 1 to 6.")
+            click.echo("Invalid choice. Please select a number from 1 to 7.")
             continue
         
-        if choice == "6":
+        if choice == "7":
             click.echo("Exiting...")
             break
         
-        # Call the selected function
         _, func = menu[choice]
         try:
             func()
