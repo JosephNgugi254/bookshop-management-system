@@ -13,6 +13,7 @@ class Book(Base):
     quantity = Column(Integer, nullable=False)
     author = relationship("Author", back_populates="books")
     genre = relationship("Genre", back_populates="books")
+    sales = relationship("Sale", back_populates="book")  # Add this line
 
     def __repr__(self):
         return f"<Book(title={self.title}, price={self.price}, quantity={self.quantity})>"
