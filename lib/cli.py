@@ -1,7 +1,9 @@
 # lib/cli.py
 import os
 import sys
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+import re
+from pathlib import Path
+project_root = str(Path.cwd())
 sys.path.insert(0, project_root)
 import click
 from sqlalchemy.orm import sessionmaker
@@ -10,6 +12,8 @@ from lib.models.book import Book
 from lib.models.author import Author
 from lib.models.genre import Genre
 from lib.models.sale import Sale
+from lib.models.cashier import Cashier
+from lib.models.customer import Customer
 from datetime import datetime, timezone
 
 session = Session()
@@ -53,10 +57,19 @@ def sell_book():
     """Sell a book and update stock."""
     book_id = click.prompt("Book ID", type=int)
     quantity = click.prompt("Quantity sold", type=int)
+    cashier_name = click.prompt("Cashier name", type=str)
+    customer_name = click.prompt("Customer name", type=str)
+    customer_phone = click.prompt("Customer phone number (07xxxxxxxx)", type=str)
     
+    # Validate inputs
     if quantity <= 0:
         click.echo("Quantity sold must be positive.")
         return
+    if not re.match(r'^07\d{8}$', customer_phone):
+        click.echo("Phone number must be in format 07xxxxxxxx (10 digits starting with 07).")
+        return
+    
+    # Check book
     book = session.query(Book).filter_by(id=book_id).first()
     if not book:
         click.echo(f"Book ID {book_id} not found.")
@@ -64,9 +77,32 @@ def sell_book():
     if book.quantity < quantity:
         click.echo(f"Error: Only {book.quantity} in stock.")
         return
+    
+    # Get or create cashier
+    cashier = session.query(Cashier).filter_by(name=cashier_name).first()
+    if not cashier:
+        cashier = Cashier(name=cashier_name)
+        session.add(cashier)
+        session.commit()  # Commit to get cashier.id
+    
+    # Get or create customer
+    try:
+        customer = session.query(Customer).filter_by(phone_number=customer_phone).first()
+        if not customer:
+            customer = Customer(name=customer_name, phone_number=customer_phone)
+            session.add(customer)
+            session.commit()  # Commit to get customer.id
+        elif customer.name != customer_name:
+            click.echo("Phone number already exists with a different name.")
+            return
+    except ValueError as e:
+        click.echo(f"Error: {e}")
+        return
+    
+    # Update stock and record sale
     book.quantity -= quantity
     total_price = book.price * quantity
-    sale = Sale(book_id=book.id, quantity=quantity, total_price=total_price, sale_date=datetime.now(timezone.utc))
+    sale = Sale(book_id=book.id, cashier_id=cashier.id, customer_id=customer.id, quantity=quantity, total_price=total_price, sale_date=datetime.now(timezone.utc))
     session.add(sale)
     session.commit()
     click.echo(f"Sold {quantity} copies of {book.title}. {book.quantity} remaining.")
@@ -100,9 +136,9 @@ def view_sold_books():
         click.echo("No sales recorded.")
         return
     click.echo("Sold books:")
-    sale_list = [(sale.id, sale.book.title, sale.quantity, sale.total_price, sale.sale_date) for sale in sales]
+    sale_list = [(sale.id, sale.book.title, sale.quantity, sale.total_price, sale.sale_date, sale.cashier.name, sale.customer.name, sale.customer.phone_number) for sale in sales]
     for sale in sale_list:
-        click.echo(f"Sale {sale[0]}: {sale[1]} - {sale[2]} copies, ${sale[3]:.2f}, Date: {sale[4]}")
+        click.echo(f"Sale {sale[0]}: {sale[1]} - {sale[2]} copies,Total amount: ${sale[3]:.2f},Date: {sale[4]},Cashier: {sale[5]},Customer: {sale[6]} ({sale[7]})")
 
 def cli():
     """Bookshop Management System CLI with numbered menu."""
@@ -117,10 +153,10 @@ def cli():
     }
     
     while True:
-        click.echo("\nBOOKSHOP MANAGEMENT SYSTEM")
+        click.echo("\nBookshop Management System")
         for key, (description, _) in menu.items():
             click.echo(f"{key}. {description}")
-        choice = click.prompt("\nEnter choice", type=str)
+        choice = click.prompt("Enter choice", type=str)
         
         if choice not in menu:
             click.echo("Invalid choice. Please select a number from 1 to 7.")
