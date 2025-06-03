@@ -9,6 +9,8 @@ from lib.models.author import Author
 from lib.models.genre import Genre
 from lib.models.book import Book
 from lib.models.sale import Sale
+from lib.models.cashier import Cashier
+from lib.models.customer import Customer
 from datetime import datetime, timezone
 
 def seed_database():
@@ -23,10 +25,14 @@ def seed_database():
     genre2 = Genre(name="Dystopian")
     book1 = Book(title="Harry Potter", author=author1, genre=genre1, price=19.99, quantity=10)
     book2 = Book(title="1984", author=author2, genre=genre2, price=14.99, quantity=15)
-    sale1 = Sale(book=book1, quantity=2, total_price=39.98, sale_date=datetime(2025, 5, 25, tzinfo=timezone.utc))
-    sale2 = Sale(book=book2, quantity=1, total_price=14.99, sale_date=datetime(2025, 5, 26, tzinfo=timezone.utc))
+    cashier1 = Cashier(name="Alice Smith")
+    cashier2 = Cashier(name="Bob Jones")
+    customer1 = Customer(name="John Doe", phone_number="0712345678")
+    customer2 = Customer(name="Jane Roe", phone_number="0723456789")
+    sale1 = Sale(book=book1, cashier=cashier1, customer=customer1, quantity=2, total_price=39.98, sale_date=datetime(2025, 5, 25, tzinfo=timezone.utc))
+    sale2 = Sale(book=book2, cashier=cashier2, customer=customer2, quantity=1, total_price=14.99, sale_date=datetime(2025, 5, 26, tzinfo=timezone.utc))
     
-    session.add_all([author1, author2, genre1, genre2, book1, book2, sale1, sale2])
+    session.add_all([author1, author2, genre1, genre2, book1, book2, cashier1, cashier2, customer1, customer2, sale1, sale2])
     session.commit()
     session.close()
     print("Database seeded successfully.")
