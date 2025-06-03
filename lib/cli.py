@@ -117,10 +117,10 @@ def cli():
     }
     
     while True:
-        click.echo("\nBookshop Management System")
+        click.echo("\nBOOKSHOP MANAGEMENT SYSTEM")
         for key, (description, _) in menu.items():
             click.echo(f"{key}. {description}")
-        choice = click.prompt("Enter choice", type=str)
+        choice = click.prompt("\nEnter choice", type=str)
         
         if choice not in menu:
             click.echo("Invalid choice. Please select a number from 1 to 7.")
